@@ -198,15 +198,16 @@ for sursa_abs in FOLDERE_SURSA:
                         os.makedirs(os.path.dirname(dest_sterse_abs), exist_ok=True)
                         shutil.move(cale_hdd_abs, dest_sterse_abs)
 
-    # 3. Sincronizare rsync (oglindă curată)
+# 3. Sincronizare rsync (oglindă curată cu bară de progres)
     print(" -> Sincronizare și salvare versiuni modificate...")
     cmd_rsync = [
         "rsync", "-rtv", "--size-only", "--delete",
+        "--info=progress2",  # <--- Bara de progres în timp real!
         f"--backup", f"--backup-dir={dir_modificate}",
         f"{sursa_abs}/", f"{destinatia_folder}/"
     ]
     subprocess.run(cmd_rsync)
-
+    
 # Salvare jurnal de redenumiri pe HDD extern dacă au existat modificări
 if intrari_log_redenumiri:
     os.makedirs(dir_sesiune_curenta, exist_ok=True)
