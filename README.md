@@ -93,11 +93,7 @@ După rulare, HDD-ul extern va arăta astfel:
 </pre>
 ## 📊 Comparație cu alte soluții populare de backup
 
-Deși există multe programe de backup pe Linux, majoritatea întâmpină probleme serioase pe un disc extern formatat **exFAT** sau creează arhive opace care nu pot fi citite direct pe alte dispozitive. 
-
-Scriptul `backup.py` a fost dezvoltat special pentru a elimina aceste neajunsuri:
-
-| Criteriu / Funcționalitate | Borg / Restic | FreeFileSync | Rclone | Syncthing | **Scriptul Tău (`backup.py`)** |
+| Criteriu / Funcționalitate | Borg / Restic | FreeFileSync | Rclone | Syncthing | **Acest script (`backup.py`)** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Format date pe HDD** | Arhivă opacă / criptată | Fișiere normale (1:1) | Fișiere normale (1:1) | Fișiere normale (1:1) | **Fișiere normale (1:1)** |
 | **Acces direct (Windows / Mac / TV)** | ❌ Nu (necesită soft) | ✅ Da | ✅ Da | ✅ Da | ✅ **Da (Direct de pe disc)** |
@@ -109,8 +105,3 @@ Scriptul `backup.py` a fost dezvoltat special pentru a elimina aceste neajunsuri
 | **Impact resurse sistem** | Minim (doar la rulare) | Mediu (interfață GUI) | Minim (doar la rulare) | ❌ Permanent în fundal (RAM/CPU) | ✅ **Zero resurse (rulează doar la cerere)** |
 | **Istoric modificări (Versioning)** | ✅ Da (în arhivă) | ✅ Da (opțional) | ⚠️ Cu opțiunea `--backup-dir` | ⚠️ Opțiuni limitate | ✅ **Da (30 de zile automatizat)** |
 
-### De ce este `backup.py` soluția optimă pentru acest scenariu?
-
-1. **Elimină blocajele exFAT:** Spre deosebire de alte unelte care se opresc cu eroare când întâlnesc caractere speciale (`:`, `?`, `*`) sau permisiuni POSIX necompatibile, `backup.py` curăță numele fișierelor pe laptop **înainte** de copiere.
-2. **Transparență 1:1:** Fișierele sunt salvate în format nativ, fiind accesibile instant pe orice calculator sau televizor, fără a depinde de o aplicație terță de restaurare.
-3. **Pachet integrat de protecție:** Validează dacă discul este montat *Read-Only*, verifică spațiul liber rămas (minim 5 GB), procesează mutările eficient prin Partial-Hash și trimite notificări vizuale pe ecran la fiecare etapă.
