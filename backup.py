@@ -7,6 +7,23 @@ import hashlib
 import re
 from datetime import datetime
 
+# --- FUNCȚIE NOTIFICARE (Plasată prima pentru a funcționa în orice etapă) ---
+def trimite_notificare(titlu, mesaj, iconita="dialog-information"):
+    """Trimite o notificare nativă pe desktop-ul Linux."""
+    try:
+        env = os.environ.copy()
+        uid = os.getuid()
+        
+        # Căile standard folosite de mediile desktop Linux moderne (GNOME/KDE/XFCE)
+        if "XDG_RUNTIME_DIR" not in env:
+            env["XDG_RUNTIME_DIR"] = f"/run/user/{uid}"
+        if "DBUS_SESSION_BUS_ADDRESS" not in env:
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/bus"
+
+        subprocess.run(["notify-send", "-i", iconita, titlu, mesaj], env=env, check=False)
+    except Exception:
+        pass
+
 # --- VERIFICARE MOD SIMULARE (DRY-RUN) ---
 IS_DRY_RUN = "--dry-run" in sys.argv or "-n" in sys.argv
 
@@ -39,13 +56,6 @@ EXCLUDERI = [
 
 CARACTERE_INTERZISE = r'[\\:*?\"<>|]'
 
-def trimite_notificare(titlu, mesaj, iconita="dialog-information"):
-    """Trimite o notificare nativă pe desktop-ul Linux."""
-    try:
-        subprocess.run(["notify-send", "-i", iconita, titlu, mesaj], check=False)
-    except Exception:
-        pass
-
 def generat_cale_unica_curata(cale_veche):
     """
     Curăță numele fișierului/folderului și garantează un nume unic
@@ -74,7 +84,7 @@ def generat_cale_unica_curata(cale_veche):
             
     return cale_noua
 
-# Verificare conexiune HDD
+# 1. VERIFICARE CONEXIUNE HDD
 if not os.path.exists(DESTINATIA_BAZA):
     msg = "EROARE: HDD-ul extern nu este conectat!"
     print("==========================================")
@@ -84,7 +94,24 @@ if not os.path.exists(DESTINATIA_BAZA):
     input("Apasă Enter pentru a închide...")
     sys.exit(1)
 
-# --- VERIFICARE SPAȚIU DISPONIBIL ---
+# 2. VERIFICARE DACĂ DISCUL ESTE MONTAT ÎN MOD READ-ONLY
+if not IS_DRY_RUN:
+    cale_test_scriere = os.path.join(DESTINATIA_BAZA, ".test_scriere.tmp")
+    try:
+        with open(cale_test_scriere, "w") as f:
+            f.write("test")
+        os.remove(cale_test_scriere)
+    except OSError:
+        msg = "EROARE: HDD-ul extern este montat în mod Read-Only (Doar citire)!"
+        print("==========================================")
+        print(f"{msg}")
+        print("Recomandare: Deconectează și reconectează HDD-ul sau verifică-l cu fsck.exfat.")
+        print("==========================================")
+        trimite_notificare("Backup Eșuat", msg, iconita="dialog-error")
+        input("Apasă Enter pentru a închide...")
+        sys.exit(1)
+
+# 3. VERIFICARE SPAȚIU DISPONIBIL
 total, used, free = shutil.disk_usage(DESTINATIA_BAZA)
 spatiu_liber_gb = free / (1024 ** 3)
 
