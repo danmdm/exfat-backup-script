@@ -7,7 +7,6 @@ Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, dete
 ---
 
 ## ✨ Funcționalități Principale
-[#-funcționalități-principale](#-funcționalități-principale)
 
 - 🧹 **Autocurățare nume incompatibile (Pre-procesare):** Detectează și redenumește direct pe laptop fișierele/folderele care conțin caractere interzise de exFAT (`*`, `:`, `?`, `"`, `<`, `>`, `|`), prevenind erorile de scriere.
 - 🛡️ **Protecție la coliziuni de nume:** În cazul numelor similare (ex: `bin*` și `bin?`), scriptul le redenumește unic (`bin_` și `bin_1`), prevenind comasarea accidentală a folderelor.
