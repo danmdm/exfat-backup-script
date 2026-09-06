@@ -24,7 +24,7 @@ Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, dete
 
 ## 🚀 Cerințe de Sistem
 
-- **Sistem de Operare:** Linux (Ubuntu, Debian, Fedora, Arch, Linux Mint, etc.)
+- **Sistem de Operare:** Linux (Ubuntu, Arch etc.) - curent optional 😁
 - **Utilitare Necesare:** `python3`, `rsync`, `notify-send` (`libnotify-bin`)
 
 Pentru instalarea dependențelor pe sisteme bazate pe Debian/Ubuntu:
