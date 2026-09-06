@@ -11,7 +11,7 @@ Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, dete
 * 🧹 **Autocurățare nume incompatibile (Pre-procesare):** Detectează și redenumește direct pe laptop fișierele/folderele care conțin caractere interzise de exFAT (`*`, `:`, `?`, `"`, `<`, `>`, `|`), prevenind erorile de scriere.
 * 🛡️ **Protecție la coliziuni de nume:** În cazul numelor similare (ex: `bin*` și `bin?`), scriptul le redenumește unic (`bin_` și `bin_1`), prevenind comasarea accidentală a folderelor.
 * ⚡ **Detecție inteligentă a mutărilor (Partial-Hash):** Dacă redenumești sau muți un folder mare pe laptop, scriptul detectează modificarea prin hash rapid (MD5 bazat pe dimensiune + header/footer de 64KB) și mută fișierele corespunzător pe HDD, fără a le recopia de la zero.
-* 🔄 **Sincronizare 1:1 cu rsync:** Sincronizează doar fișierele modificate sau noi (folosind `--size-only` și potrivire de timp prin `os.utime`), afișând o bară dinamică de progres în timp real (`--info=progress2,stats2`).
+- 🔄 **Sincronizare 1:1 cu rsync:** Sincronizează doar fișierele modificate sau noi, afișând o bară dinamică de progres în timp real (`--info=progress2,stats2`).
 * 🔒 **Detectare Read-Only & Dispozitiv Conectat:** Verifică dacă HDD-ul extern este montat corespunzător și dacă permite scrierea înainte de procesare, prevenind oprirea accidentală la jumătatea procesului.
 * 📦 **Excludere automată fișiere temporare (Junk Filter):** Omite fișierele temporare sau inutile (`.tmp`, `.DS_Store`, `__pycache__`, `thumbs.db`, lock-uri LibreOffice `.~lock.*`, `.Trash-*` etc.).
 * 🕒 **Istoric de siguranță (30 de zile):** Fișierele șterse sau modificate sunt salvate în folderul `_Istoric_Modificari/DATA_ORA/` timp de 30 de zile înainte de a fi curățate automat.
@@ -25,12 +25,12 @@ Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, dete
 ## 🚀 Cerințe de Sistem
 
 - **Sistem de Operare:** Linux (Ubuntu, Arch etc.) - curent optional 😁
-- **Utilitare Necesare:** `python3`, `rsync`, `notify-send` (`libnotify-bin`)
+- **Utilitare Necesare:** `python3`, `rsync`, `notify-send` (`libnotify-bin`), `find` (`findutils`)
 
 Pentru instalarea dependențelor pe sisteme bazate pe Debian/Ubuntu:
 ```bash
 sudo apt update
-sudo apt install python3 rsync libnotify-bin
+sudo apt install python3 rsync libnotify-bin findutils
 ```
 
 ---
