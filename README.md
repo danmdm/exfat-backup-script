@@ -1,6 +1,6 @@
 # 🚀 Smart Sync Backup Script (Linux -> exFAT)
 
-Un script Python avansat și eficient pentru backup incremental automatizat de pe un laptop cu sistem Linux pe medii de stocare externe (HDD/SSD formatate exFAT sau NTFS).
+Un script Python pentru backup incremental automatizat de pe un laptop cu sistem Linux pe medii de stocare externe (HDD/SSD formatate exFAT sau NTFS).
 
 Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, detectează mutările de fișiere prin hash și păstrează o versiune de siguranță a fișierelor modificate/șterse.
 
@@ -16,14 +16,15 @@ Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, dete
 - 📦 **Excludere automată fișiere temporare (Junk Filter):** Omite fișierele temporare sau inutile (`.tmp`, `.DS_Store`, `__pycache__`, `thumbs.db`, lock-uri LibreOffice `.~lock.*`, `.Trash-*` etc.).
 - 🕒 **Istoric de siguranță (30 de zile):** Fișierele șterse sau modificate sunt salvate în folderul `_Istoric_Modificari/DATA_ORA/` timp de 30 de zile înainte de a fi curățate automat.
 - 📝 **Jurnalizare (Log):** Generare automată a fișierului `redenumiri.log` pe HDD la fiecare sesiune în care au fost modificate nume din cauza caracterelor speciale exFAT.
-- 💾 **Verificare spațiu liber:** Oprește execuția de siguranță dacă pe HDD-ul extern rămân mai puțin de 5 GB liberi.
+- 💾 **Verificare dinamică a spațiului liber:** Calculează dimensiunea exactă a datelor noi sau modificate și oprește execuția de siguranță ÎNAINTE de transfer dacă spațiul liber de pe HDD este insuficient (include o marjă minimă de siguranță de 200 MB), prevenind erorile la jumătatea procesului.
 - 🔔 **Notificări Desktop (Nativ Linux):** Afișează notificări pe ecran (`notify-send`) la pornire, finalizare sau în caz de eroare (HDD deconectat, spațiu insuficient, disc Read-Only).
 - 🧪 **Mod Simulare (`--dry-run`):** Permite testarea completă a procesului fără a efectua nicio modificare pe disk (`python3 backup.py --dry-run`).
+
 ---
 
 ## 📋 Cerințe Sistem
 
-- **Sistem de operare:** Linux (Ubuntu, Debian, Fedora, Arch etc.)
+- **Sistem de operare:** Linux (Ubuntu, Debian, Arch etc.) - curent optional :) 
 - **Versiune Python:** Python 3.6+
 - **Pachete sistem:** `rsync`, `libnotify-bin` (pentru comanda `notify-send`)
 
@@ -38,6 +39,7 @@ sudo apt update && sudo apt install rsync libnotify-bin python3
 ## 🚀 Utilizare
 
 ### 1. Rulare Normală (Backup Real)
+
 Pentru a efectua backup-ul efectiv:
 
 <pre>
@@ -45,6 +47,7 @@ python3 backup.py
 </pre>
 
 ### 2. Mod Simulare (Dry-Run)
+
 Pentru a testa ce modificări s-ar face fără a modifica niciun fișier pe laptop sau HDD:
 
 <pre>
@@ -69,9 +72,6 @@ FOLDERE_SURSA = [
 
 # Calea către punctul de montare al HDD-ului extern
 DESTINATIA_BAZA = "/media/UTILIZATOR/LABEL_HDD"
-
-# Spațiul liber minim necesar pe HDD (în GB)
-SPATIU_MINIM_GB = 5
 </pre>
 
 ---
@@ -82,26 +82,12 @@ După rulare, HDD-ul extern va arăta astfel:
 
 <pre>
 /media/UTILIZATOR/LABEL_HDD/
-├── Documente/               &lt;-- Copia fidelă
-├── Poze/                    &lt;-- Copia fidelă
-├── Sync/                    &lt;-- Copia fidelă
+├── Documente/               <-- Copia fidelă
+├── Poze/                    <-- Copia fidelă
+├── Sync/                    <-- Copia fidelă
 └── _Istoric_Modificari/
-    └── 2026-09-06_12-00/    &lt;-- Folderul sesiunii curente
-        ├── redenumiri.log   &lt;-- Jurnalul de redenumiri (dacă au existat)
-        ├── _Fisiere_STERSE/ &lt;-- Fișiere eliminate de pe laptop
-        └── _Fisiere_MODIFICATE/ &lt;-- Versiuni vechi ale fișierelor editate
+    └── 2026-09-06_12-00/    <-- Folderul sesiunii curente
+        ├── redenumiri.log   <-- Jurnalul de redenumiri (dacă au existat)
+        ├── _Fisiere_STERSE/ <-- Fișiere eliminate de pe laptop
+        └── _Fisiere_MODIFICATE/ <-- Versiuni vechi ale fișierelor editate
 </pre>
-## 📊 Comparație cu alte soluții populare de backup
-
-| Criteriu / Funcționalitate | Borg / Restic | FreeFileSync | Rclone | Syncthing | **Acest script (`backup.py`)** |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Format date pe HDD** | Arhivă opacă / criptată | Fișiere normale (1:1) | Fișiere normale (1:1) | Fișiere normale (1:1) | **Fișiere normale (1:1)** |
-| **Acces direct (Windows / Mac / TV)** | ❌ Nu (necesită soft) | ✅ Da | ✅ Da | ✅ Da | ✅ **Da (Direct de pe disc)** |
-| **Compatibilitate exFAT pe Linux** | ❌ Incompatibil (necesită POSIX) | ⚠️ Fără redenumire automată | ⚠️ Fără sanitizare prealabilă | ❌ Eroare permisiuni / caractere | ✅ **Nativă (Curățare automatizată)** |
-| **Detecție redenumiri / mutări** | ✅ Da (Deduplicare) | ✅ Da | ⚠️ Doar cu `--track-renames` | ✅ Da (Sincronizare live) | ✅ **Partial-Hash ultra-rapid** |
-| **Gestiune HDD USB detașabil** | ⚠️ Necesită scriptare extra | ⚠️ Necesită fișiere XML | ⚠️ Manual / prin CLI | ❌ Conceput pentru dispozitive live | ✅ **Optimizat (Notificări + Oprire curată)** |
-| **Verificare Read-Only & Spațiu** | ❌ Nu | ❌ Nu | ❌ Nu | ❌ Nu | ✅ **Integrată nativ (cu notificare)** |
-| **Notificări Desktop (D-Bus / XDG)** | ❌ Necesită wrapper | ⚠️ Parțial | ❌ Nu | ⚠️ Doar prin interfața web | ✅ **Integrat nativ (`notify-send`)** |
-| **Impact resurse sistem** | Minim (doar la rulare) | Mediu (interfață GUI) | Minim (doar la rulare) | ❌ Permanent în fundal (RAM/CPU) | ✅ **Zero resurse (rulează doar la cerere)** |
-| **Istoric modificări (Versioning)** | ✅ Da (în arhivă) | ✅ Da (opțional) | ⚠️ Cu opțiunea `--backup-dir` | ⚠️ Opțiuni limitate | ✅ **Da (30 de zile automatizat)** |
-
