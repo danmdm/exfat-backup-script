@@ -5,7 +5,67 @@ import subprocess
 import sys
 import hashlib
 import re
+import argparse
 from datetime import datetime
+
+# ==========================================
+# PARSARE PARAMETRI DIN LINIA DE COMANDĂ
+# ==========================================
+parser = argparse.ArgumentParser(
+    description="Backup inteligent Linux -> exFAT cu sincronizare rsync și detecție mutări.",
+    usage="%(prog)s sursa1 [sursa2 ...] destinatie [--dry-run]"
+)
+
+parser.add_argument(
+    'cai',
+    nargs='*',
+    help='Căile sursă urmate de calea destinație (ultimul argument reprezintă destinația)'
+)
+
+parser.add_argument(
+    '-n', '--dry-run',
+    action='store_true',
+    help='Rulează în mod simulare fără a efectua modificări fizice'
+)
+
+args = parser.parse_args()
+
+# Verificare existență parametri minimi
+if len(args.cai) < 2:
+    print("❌ EROARE: Trebuie să specifici cel puțin o cale sursă și o cale destinație!\n")
+    print("Exemple de utilizare:")
+    print("  ./backup.py ~/Desktop ~/Documents /media/dan/stick")
+    print("  ./backup.py ~/Downloads /media/dan/stick --dry-run\n")
+    input("Apasă Enter pentru a închide...")
+    sys.exit(1)
+
+# Extragere dinamică surse și destinație
+DESTINATIA_BAZA = os.path.abspath(os.path.expanduser(args.cai[-1]))
+FOLDERE_SURSA = [os.path.abspath(os.path.expanduser(p)) for p in args.cai[:-1]]
+
+# --- VERIFICARE MOD SIMULARE (DRY-RUN) ---
+IS_DRY_RUN = args.dry_run or "--dry-run" in sys.argv or "-n" in sys.argv
+
+# --- CONFIGURARE HDD EXTERN ---
+DIR_ISTORIC_BAZA = os.path.join(DESTINATIA_BAZA, "_Istoric_Modificari")
+MARJA_SIGURANTA_MB = 200  # Marjă minimă în MB pentru stabilitate exFAT
+
+# --- FILTRARE FIȘIERE TEMPORARE ȘI JUNK ---
+EXCLUDERI = [
+    "*.tmp",
+    "*~",
+    ".~lock.*",          
+    ".Trash-*",          
+    "__pycache__",        
+    ".pytest_cache",
+    ".thumbnails",        
+    "thumbs.db",          
+    ".DS_Store",          
+    "*.part",            
+    "*.crdownload"        
+]
+
+CARACTERE_INTERZISE = r'[\\:*?\"<>|]'
 
 # --- FUNCȚIE NOTIFICARE ---
 def trimite_notificare(titlu, mesaj, iconita="dialog-information"):
@@ -22,38 +82,6 @@ def trimite_notificare(titlu, mesaj, iconita="dialog-information"):
         subprocess.run(["notify-send", "-i", iconita, titlu, mesaj], env=env, check=False)
     except Exception:
         pass
-
-# --- VERIFICARE MOD SIMULARE (DRY-RUN) ---
-IS_DRY_RUN = "--dry-run" in sys.argv or "-n" in sys.argv
-
-# --- CONFIGURARE LISTĂ FOLDERE SURSĂ ---
-FOLDERE_SURSA = [
-    os.path.expanduser("~/Desktop"),
-#    os.path.expanduser("~/Documents"),
-    os.path.expanduser("~/Downloads"),
-]
-
-# --- CONFIGURARE HDD EXTERN ---
-DESTINATIA_BAZA = "/media/dan/7FDD-5401"
-DIR_ISTORIC_BAZA = os.path.join(DESTINATIA_BAZA, "_Istoric_Modificari")
-MARJA_SIGURANTA_MB = 200  # Marjă minimă în MB pentru stabilitate exFAT
-
-# --- FILTRARE FIȘIERE TEMPORARE ȘI JUNK ---
-EXCLUDERI = [
-    "*.tmp",
-    "*~",
-    ".~lock.*",          
-    ".Trash-*",          
-    "__pycache__",       
-    ".pytest_cache",
-    ".thumbnails",        
-    "thumbs.db",         
-    ".DS_Store",         
-    "*.part",            
-    "*.crdownload"       
-]
-
-CARACTERE_INTERZISE = r'[\\:*?\"<>|]'
 
 def generat_cale_unica_curata(cale_veche):
     cale_dir, nume_vechi = os.path.split(cale_veche)
@@ -98,7 +126,7 @@ def calculeaza_hash_rapid(cale_fisier):
 
 # 1. VERIFICARE CONEXIUNE HDD
 if not os.path.exists(DESTINATIA_BAZA):
-    msg = "EROARE: HDD-ul extern nu este conectat!"
+    msg = f"EROARE: HDD-ul extern nu este conectat la calea: {DESTINATIA_BAZA}"
     print("==========================================")
     print(msg)
     print("==========================================")
