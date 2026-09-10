@@ -1,85 +1,161 @@
-# 🚀 Smart Sync Backup Script (Linux -> exFAT)
+# 🔄 backup.py — Backup inteligent Linux → exFAT
 
-Un script Python pentru backup incremental automatizat de pe un laptop cu sistem Linux pe medii de stocare externe (HDD/SSD formatate exFAT sau NTFS).
+Script Python pentru sincronizare incrementală a folderelor importante de pe
+Linux către un HDD/stick extern formatat exFAT, cu detecție de fișiere
+mutate/redenumite, istoric al versiunilor vechi și verificări de siguranță
+înainte de orice modificare pe disc.
 
-Previne coruperea datelor, gestionează caracterele incompatibile cu exFAT, detectează mutările de fișiere prin hash și păstrează o versiune de siguranță a fișierelor modificate/șterse.
+Nu e un simplu wrapper peste `rsync` — indexează sursa, detectează ce s-a
+mutat vs. ce s-a șters cu adevărat, verifică spațiul disponibil **înainte**
+de a atinge discul, și păstrează un istoric per-sesiune al fișierelor
+suprascrise sau șterse.
 
 ---
 
-## ✨ Funcționalități Principale
+## ✨ Funcționalități
 
-- 🧹 **Autocurățare nume incompatibile (Pre-procesare):** Detectează și redenumește direct pe laptop fișierele/folderele care conțin caractere interzise de exFAT (`*`, `:`, `?`, `"`, `<`, `>`, `|`), prevenind erorile de scriere.
-- 🛡️ **Protecție la coliziuni de nume:** În cazul numelor similare (ex: `bin*` și `bin?`), scriptul le redenumește unic (`bin_` și `bin_1`), prevenind comasarea accidentală a folderelor.
-- ⚡ **Detecție inteligentă a mutărilor (Partial-Hash):** Dacă redenumești sau muți un folder mare pe laptop, scriptul detectează modificarea prin hash rapid (MD5 bazat pe dimensiune + header/footer de 64KB) și mută fișierele corespunzător pe HDD, fără a le recopia de la zero.
-- 🔄 **Sincronizare 1:1 cu rsync:** Sincronizează doar fișierele modificate sau noi, afișând o bară dinamică de progres în timp real (`--info=progress2,stats2`).
-- 🔒 **Detectare Read-Only & Dispozitiv Conectat:** Verifică dacă HDD-ul extern este montat corespunzător și dacă permite scrierea înainte de procesare, prevenind oprirea accidentală la jumătatea procesului.
-- 📦 **Excludere automată fișiere temporare (Junk Filter):** Omite fișierele temporare sau inutile (`.tmp`, `.DS_Store`, `__pycache__`, `thumbs.db`, lock-uri LibreOffice `.~lock.*`, `.Trash-*` etc.).
-- 🕒 **Istoric de siguranță (30 de zile):** Fișierele șterse sau modificate sunt salvate în folderul `_Istoric_Modificari/DATA_ORA/` timp de 30 de zile înainte de a fi curățate automat.
-- 📝 **Jurnalizare (Log):** Generare automată a fișierului `redenumiri.log` pe HDD la fiecare sesiune în care au fost modificate nume din cauza caracterelor speciale exFAT.
-- 💾 **Verificare dinamică a spațiului liber:** Calculează dimensiunea exactă a datelor noi sau modificate și oprește execuția de siguranță ÎNAINTE de transfer dacă spațiul liber de pe HDD este insuficient (include o marjă minimă de siguranță de 200 MB), prevenind erorile la jumătatea procesului.
-- 🔔 **Notificări Desktop (Nativ Linux):** Afișează notificări pe ecran (`notify-send`) la pornire, finalizare sau în caz de eroare (HDD deconectat, spațiu insuficient, disc Read-Only).
-- 🧪 **Mod Simulare (--dry-run):** Permite testarea completă a procesului fără a efectua nicio modificare pe disk (`python3 backup.py /sursa /destinatie --dry-run`).
+- **Sincronizare incrementală** cu `rsync`, comparând `mtime + size`, cu
+  toleranță `--modify-window=2` pentru precizia de timp de 2 secunde a
+  exFAT.
+- **Detecție de mutări/redenumiri** — dacă un fișier a fost mutat sau
+  redenumit în sursă, scriptul îl recunoaște după conținut (hash) și îl
+  mută în locul corespunzător pe HDD, în loc să-l copieze din nou.
+- **Istoric al versiunilor** — fișierele modificate sau șterse din sursă nu
+  se pierd: ajung în `_Istoric/.../<sesiune>/_MODIF` respectiv `_STERS`,
+  organizate per utilizator și per sesiune de backup.
+- **Autocurățare nume incompatibile cu exFAT/Windows** — caractere
+  interzise (`\ : * ? " < > |`), nume rezervate (`CON`, `PRN`, `COM1`...),
+  spații/puncte la final — sunt corectate automat pe sursă, cu jurnal al
+  redenumirilor.
+- **Protecție la coliziuni de nume** — dacă după curățare două nume ar
+  ajunge identice (ex. `bin*` și `bin?` devin ambele `bin_`), scriptul le
+  face unice automat (`bin_`, `bin_1`, ...), ca să nu se comaseze
+  accidental două fișiere sau foldere diferite.
+- **Excludere automată a fișierelor/folderelor temporare (junk filter)** —
+  nu sunt sincronizate niciodată fișierele gen `*.tmp`, `*~`,
+  `.~lock.*` (lock-uri LibreOffice), `*.part`, `*.crdownload`,
+  `thumbs.db`, `.DS_Store`, `desktop.ini`, respectiv folderele
+  `__pycache__`, `.pytest_cache`, `.thumbnails`, `.Trash-*`,
+  `$RECYCLE.BIN`, `System Volume Information`.
+- **Verificare de spațiu înainte de sincronizare** — calculează exact câți
+  MB sunt necesari (inclusiv spațiul păstrat pentru versiunile vechi) și
+  oprește totul dacă nu încape, **fără să atingă discul**.
+- **Verificări de siguranță** — refuză să ruleze ca root, verifică dacă
+  discul e montat și scriibil, și blochează suprapunerile periculoase
+  între surse și destinație (ex. destinația aflată în interiorul unei
+  surse, ceea ce ar cauza copiere recursivă).
+- **Mod simulare (`--dry-run`)** — arată exact ce s-ar întâmpla, fără nicio
+  modificare fizică.
+- **Notificări desktop** (via `notify-send`) la început și la final.
+- **Curățare automată a istoricului vechi** (configurabil, implicit 30 de
+  zile).
+
 ---
 
-## 🚀 Cerințe de Sistem
+## 📋 Cerințe
 
-- **Sistem de Operare:** Linux (Ubuntu, Arch etc.) - curent optional 😁
-- **Utilitare Necesare:** `python3`, `rsync`, `notify-send` (`libnotify-bin`), `find` (`findutils`)
+- Linux (testat pe Linux Mint)
+- Python 3.8+
+- `rsync` instalat
+- `notify-send` (opțional — notificările sunt dezactivate automat dacă
+  lipsește)
 
-Pentru instalarea dependențelor pe sisteme bazate pe Debian/Ubuntu:
+Nu necesită niciun pachet Python în afara bibliotecii standard.
+
+---
+
+## 🚀 Utilizare
+
 ```bash
-sudo apt update
-sudo apt install python3 rsync libnotify-bin findutils
+./backup.py sursa1 [sursa2 ...] destinatie [opțiuni]
 ```
 
----
+Ultimul argument e întotdeauna destinația; toate celelalte sunt foldere
+sursă.
 
-## 🛠️ Utilizare
+### Exemple
 
-Scriptul primește căile **sursă** ca primii parametri, iar **ultimul parametru** furnizat va fi întotdeauna calea către **destinație** (HDD-ul/stick-ul extern).
-
-### Sintaxă:
 ```bash
-./backup.py <sursa1> [sursa2 ...] <destinatie> [opțiuni]
+# Backup simplu, un singur folder
+./backup.py ~/Documents /media/dan/stick
+
+# Mai multe surse într-o singură rulare
+./backup.py ~/Desktop ~/Documents ~/Poze /media/dan/stick
+
+# Simulare — vezi ce s-ar întâmpla, fără modificări reale
+./backup.py ~/Documents /media/dan/stick --dry-run
+
+# Output detaliat, fișier cu fișier + bară de progres live
+./backup.py ~/Documents /media/dan/stick --verbose
 ```
 
-### Exemple:
+Cu `--verbose`, `rsync` rulează cu `--info=progress2,stats2,name` și arată
+o bară de progres live pe fișier transferat; fără `--verbose`, output-ul e
+mai concis (doar numele fișierelor + statistici finale).
 
-1. **Backup pentru un singur folder:**
-   ```bash
-   ./backup.py ~/Documents /media/dan/stick
-   ```
+### Opțiuni
 
-2. **Backup pentru directoare multiple de pe laptop:**
-   ```bash
-   ./backup.py ~/Desktop ~/Documents ~/Downloads /media/dan/stick
-   ```
-
-3. **Rulare în mod Simulare (Dry-Run):**
-   Afișează toate operațiunile (sanitizări, mutări, sincronizări rsync) fără a scrie sau șterge fizic pe disc.
-   ```bash
-   ./backup.py ~/Desktop ~/Documents ~/Downloads /media/dan/stick --dry-run
-   ```
-   *Notă:* Puteți folosi și scurtătura `-n`:
-   ```bash
-   ./backup.py ~/Documents /media/dan/stick -n
-   ```
+| Opțiune | Descriere | Implicit |
+|---|---|---|
+| `-n`, `--dry-run` | Simulare, fără nicio modificare fizică | — |
+| `-v`, `--verbose` | Listare completă a fișierelor procesate de rsync | — |
+| `--marja-mb MB` | Marjă de siguranță suplimentară la verificarea de spațiu | `200` |
+| `--zile-istoric N` | Câte zile se păstrează sesiunile vechi din istoric | `30` |
 
 ---
 
-## 📂 Structura Generată pe HDD
+## 🗂️ Structura pe destinație
 
-Destinația va avea următoarea structură curată:
-
-```text
+```
 /media/dan/stick/
-├── Desktop/                       <-- Sincronizare directă folder
-├── Documents/                     <-- Sincronizare directă folder
-├── Downloads/                     <-- Sincronizare directă folder
-└── _Istoric_Modificari/
-    └── 2026-03-09_18-30/          <-- Folderul sesiunii curente
-        ├── redenumiri.log         <-- Jurnalul redenumirilor de pe laptop
-        ├── _Fisiere_STERSE/        <-- Fișierele șterse de pe laptop
-        └── _Fisiere_MODIFICATE/    <-- Versiunile vechi ale fișierelor modificate
+├── home/dan/Documents/...          <- backup curent (oglindă a căii sursă)
+├── home/dan/Desktop/...
+└── _Istoric/
+    └── home/dan/                   <- istoric separat per utilizator
+        └── 2026-09-10_14-30-05/
+            ├── _MODIF/...          <- versiunile vechi ale fișierelor suprascrise
+            ├── _STERS/...          <- fișiere șterse din sursă
+            └── redenumiri.log      <- jurnal al numelor corectate pt. exFAT
 ```
 
+Fiecare sursă e oglindită pe destinație după calea ei absolută completă —
+nu doar după numele folderului — astfel încât două surse cu același nume
+de bază (ex. `~/Documents` și `/media/extern/Documents`) nu se suprapun
+niciodată pe backup.
+
+---
+
+## ⚙️ Cum funcționează, pe scurt
+
+1. **Planificare (read-only)** — pentru fiecare sursă: se corectează
+   numele incompatibile cu exFAT, se indexează toate fișierele (cu un hash
+   rapid pe conținut, pentru detecția mutărilor) și se calculează spațiul
+   necesar, folosind exact aceeași logică de comparație pe care o va
+   folosi `rsync` (`mtime + size`, toleranță 2 secunde).
+2. **Verificare de spațiu** — se însumează necesarul pentru toate sursele
+   și se compară cu spațiul liber + marja de siguranță. Dacă nu e
+   suficient, scriptul se oprește aici — **nimic nu a fost încă modificat
+   pe HDD**.
+3. **Execuție** — abia acum se ating date pe disc: fișierele mutate/
+   redenumite în sursă sunt mutate corespunzător pe HDD (nu recopiate),
+   cele dispărute din sursă sunt relocate în `_STERS`, apoi `rsync`
+   sincronizează conținutul propriu-zis, păstrând versiunile suprascrise
+   în `_MODIF`.
+
+---
+
+## ⚠️ De reținut
+
+- Scriptul **redenumește fișierele originale de pe sursă** (nu doar
+  copiile de pe backup) dacă acestea au caractere incompatibile cu
+  exFAT/Windows. Redenumirile sunt jurnalizate în `redenumiri.log`.
+- Nu rulați scriptul cu `sudo`/ca root — refuză explicit acest lucru.
+- Codurile de eroare `rsync` 23/24 (fișiere modificate/dispărute în timpul
+  transferului) sunt tratate ca avertismente, nu ca eșec total — se pot
+  întâmpla normal dacă lucrați în fișiere în timp ce rulează backup-ul.
+
+---
+
+## 📄 Licență
+
+GPL-3.0
